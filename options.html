@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WhatsApp Text Refiner – Settings</title>
+  <style>
+    :root {
+      --bg: #f0f2f5; --card: #fff; --fg: #111b21; --muted: #667781;
+      --border: #d1d7db; --accent: #00a884; --err: #d93025;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111b21; --card: #202c33; --fg: #e9edef; --muted: #8696a0; --border: #3b4a54; }
+    }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+    main { max-width: 520px; margin: 40px auto; padding: 24px; background: var(--card); border-radius: 12px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p.sub { color: var(--muted); margin: 0 0 24px; }
+    label { display: block; font-weight: 600; margin: 16px 0 6px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--card); color: var(--fg); font: inherit; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    label.check { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-top: 20px; cursor: pointer; }
+    label.check input { width: auto; margin: 0; }
+    .row { display: flex; gap: 8px; margin-top: 24px; }
+    button { padding: 8px 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--card);
+      color: var(--fg); font: inherit; cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    #status { margin-top: 12px; min-height: 1.5em; }
+    #status.err { color: var(--err); }
+    #status.ok { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>WhatsApp Text Refiner</h1>
+    <p class="sub">Refine drafts with the ✨ button or <b>Alt+R</b>. Hover over an incoming message and click 💬 to draft a reply.</p>
+
+    <label for="apiKey">Anthropic API key</label>
+    <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+    <div class="hint">Stored only in this browser. Get one at console.anthropic.com.</div>
+
+    <label for="defaultTone">Default tone</label>
+    <select id="defaultTone">
+      <option value="polished">Polished</option>
+      <option value="friendly">Friendly</option>
+      <option value="concise">Concise</option>
+      <option value="formal">Formal</option>
+      <option value="grammar">Fix grammar only</option>
+    </select>
+
+    <label for="model">Model</label>
+    <select id="model">
+      <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
+      <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+      <option value="claude-opus-5-5">Claude Opus 5.5 (best quality)</option>
+    </select>
+
+    <label class="check" for="refineContext">
+      <input id="refineContext" type="checkbox" checked>
+      Use chat context when refining
+    </label>
+    <div class="hint">✨ also sends the last 12 messages of the open chat (text only) so the rewrite fits the conversation.</div>
+
+    <div class="row">
+      <button id="save" class="primary">Save</button>
+      <button id="test">Test key</button>
+    </div>
+    <div id="status"></div>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+.wr-bar {
+  --wr-bg: #ffffff;
+  --wr-fg: #111b21;
+  --wr-border: #d1d7db;
+  --wr-accent: #00a884;
+  position: absolute;
+  top: -28px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  align-items: stretch;
+  height: 24px;
+  border: 1px solid var(--wr-border);
+  border-radius: 12px;
+  background: var(--wr-bg);
+  color: var(--wr-fg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-size: 12px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.wr-bar:hover,
+.wr-bar:focus-within,
+.wr-bar.wr-loading {
+  opacity: 1;
+}
+/* Inline in the composer row, just left of the send / confirm button. */
+.wr-bar.wr-inline {
+  position: static;
+  flex: none;
+  align-self: center;
+  margin: 0 6px;
+  height: 28px;
+  border-radius: 14px;
+  opacity: 0.85;
+}
+.wr-bar.wr-hidden {
+  display: none;
+}
+body.dark .wr-bar {
+  --wr-bg: #202c33;
+  --wr-fg: #e9edef;
+  --wr-border: #3b4a54;
+}
+
+.wr-btn {
+  width: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wr-btn:hover:not(:disabled) {
+  background: rgba(0, 168, 132, 0.12);
+}
+.wr-btn:disabled {
+  cursor: progress;
+}
+.wr-loading .wr-btn {
+  animation: wr-spin 1s linear infinite;
+}
+
+.wr-tone-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border-left: 1px solid var(--wr-border);
+  color: var(--wr-fg);
+  opacity: 0.8;
+  cursor: pointer;
+}
+.wr-tone-wrap:hover {
+  background: rgba(0, 168, 132, 0.12);
+}
+.wr-tone {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+@keyframes wr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wr-reply-btn {
+  position: fixed;
+  z-index: 1000;
+  display: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #d1d7db;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+body.dark .wr-reply-btn {
+  border-color: #3b4a54;
+  background: #202c33;
+}
+.wr-reply-btn.wr-show {
+  display: block;
+}
+.wr-reply-btn:hover:not(:disabled) {
+  border-color: #00a884;
+}
+.wr-reply-btn.wr-loading {
+  cursor: progress;
+  animation: wr-spin 1s linear infinite;
+}
+.wr-target {
+  outline: 2px solid #00a884;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.wr-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 90px;
+  transform: translate(-50%, 20px);
+  z-index: 10000;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #323739;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.wr-toast.wr-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.wr-toast button {
+  border: 0;
+  background: none;
+  color: #53bdeb;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
