@@ -388,8 +388,9 @@
     toast(doneMessage, {
       action: "Undo",
       onAction: async () => {
-        const e = ed.isConnected ? ed : findEditor();
-        if (e && !(await setDraft(e, previous))) toast("Couldn't undo. Try Ctrl+Z.");
+        // Only undo in the same box, and only if it still holds what we put there.
+        if (!ed.isConnected || norm(getDraft(ed)) !== norm(text)) return toast("The text changed since, so Undo was skipped.");
+        if (!(await setDraft(ed, previous))) toast("Couldn't undo. Try Ctrl+Z.");
       },
       duration: 8000,
     });
@@ -439,6 +440,13 @@
 
   // ---- Draft a reply to a chosen message ----
 
+  // The open chat's name, to notice a chat switch while a request runs.
+  // shortcut: returns "" if WhatsApp moves the name, and then the check passes; upgrade if drafts land in the wrong chat.
+  function chatTitle() {
+    const h = document.querySelector("#main header");
+    return h?.querySelector("span[title]")?.getAttribute("title") || h?.querySelector('[dir="auto"]')?.textContent || "";
+  }
+
   async function draftReplyTo(row) {
     if (busy) return;
     const editor = findEditor();
@@ -446,12 +454,14 @@
     if (!chatBubbles().includes(row)) return toast("Couldn't read this message. Try hovering it again.");
     const previous = getDraft(editor);
     const bubble = bubbleEl(row);
+    const chat = chatTitle();
 
     setBusy(true);
     bubble.classList.add("wr-target");
     try {
       const res = await askBackground({ type: "draftReply", ...(await replyContext(row)) });
       if (res.error) return showError(res);
+      if (chatTitle() !== chat) return toast("You switched chats, so the drafted reply was dropped.");
 
       const ed = findEditor();
       if (!ed || norm(getDraft(ed)) !== norm(previous)) {
