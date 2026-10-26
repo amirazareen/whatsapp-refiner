@@ -9,6 +9,8 @@
     ["concise", "Concise"],
     ["formal", "Formal"],
     ["grammar", "Fix grammar only"],
+    ["to_en", "→ English"],
+    ["to_ms", "→ Bahasa Melayu"],
   ];
   const toneLabel = (v) => (TONES.find(([k]) => k === v) || TONES[0])[1];
 
@@ -16,10 +18,37 @@
   let busy = false;
   let toastTimer = null;
 
-  chrome.storage.local.get(["defaultTone"], ({ defaultTone }) => {
-    if (defaultTone) currentTone = defaultTone;
-    syncToneUI();
+  // Tone is remembered per chat (by chat name); new chats use the default.
+  let defaultTone = "polished";
+  let chatTones = {};
+  let lastChat = null;
+
+  chrome.storage.local.get(["defaultTone", "chatTones"], (s) => {
+    defaultTone = s.defaultTone || "polished";
+    chatTones = s.chatTones || {};
+    lastChat = null; // re-apply now that the saved tones are loaded
+    applyChatTone();
   });
+
+  // Called on every DOM change; acts only when the open chat changes.
+  function applyChatTone() {
+    const chat = chatTitle();
+    if (chat === lastChat) return;
+    if (lastChat !== null) {
+      closePicker();
+      closeSummary();
+    }
+    lastChat = chat;
+    currentTone = (chat && chatTones[chat]) || defaultTone;
+    syncToneUI();
+  }
+
+  function saveChatTone(tone) {
+    const chat = chatTitle();
+    if (!chat) return; // no name found: don't make every chat share one tone
+    chatTones[chat] = tone;
+    chrome.storage.local.set({ chatTones });
+  }
 
   // ---- Finding and reading the compose box ----
 
@@ -350,7 +379,7 @@
   function setBusy(state) {
     busy = state;
     document.querySelectorAll(".wr-bar").forEach((b) => b.classList.toggle("wr-loading", state));
-    document.querySelectorAll(".wr-btn, .wr-reply-btn").forEach((b) => (b.disabled = state));
+    document.querySelectorAll(".wr-btn, .wr-reply-btn, .wr-catchup").forEach((b) => (b.disabled = state));
     replyBtn?.classList.toggle("wr-loading", state);
   }
 
@@ -408,18 +437,28 @@
     return { context, replyingTo };
   }
 
-  async function refineDraft(editor) {
+  // The ✨ button asks for 3 versions to pick from; Alt+R inserts one directly.
+  async function refineDraft(editor, pick = false) {
     if (busy || !editor?.isConnected) return;
     const original = getDraft(editor);
     if (!original) {
       toast("Type a message first.");
       return;
     }
+    closePicker();
+    const variants = pick && currentTone !== "grammar";
 
     setBusy(true);
     try {
-      const res = await askBackground({ type: "refine", text: original, tone: currentTone, ...(await refineContext(editor)) });
+      const res = await askBackground({
+        type: "refine",
+        text: original,
+        tone: currentTone,
+        variants,
+        ...(await refineContext(editor)),
+      });
       if (res.error) return showError(res);
+      if (res.versions) return showPicker(editor, original, res.versions);
 
       // Don't clobber edits the user made while waiting.
       const ed = editor.isConnected ? editor : null;
@@ -475,6 +514,100 @@
       updateVisibility();
     }
   }
+
+  // ---- Pick one of 3 refined versions ----
+
+  let picker = null;
+  function closePicker() {
+    picker?.remove();
+    picker = null;
+  }
+
+  function showPicker(editor, original, versions) {
+    closePicker();
+    picker = document.createElement("div");
+    picker.className = "wr-picker";
+    ["Shorter", "Best", "Different wording"].forEach((label, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      const tag = document.createElement("span");
+      tag.className = "wr-picker-label";
+      tag.textContent = label;
+      b.append(tag, document.createTextNode(versions[i]));
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", async () => {
+        closePicker();
+        if (!editor.isConnected || norm(getDraft(editor)) !== norm(original)) {
+          return toast("Draft changed, so nothing was inserted.");
+        }
+        await insertWithUndo(editor, versions[i], original, "Inserted. Review it, then press Enter to send.");
+      });
+      picker.append(b);
+    });
+    document.body.append(picker);
+    const r = (bars.get(editor) || editor).getBoundingClientRect();
+    picker.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+    picker.style.bottom = `${window.innerHeight - r.top + 8}px`;
+  }
+
+  // ---- 📝 Catch me up: summarise the loaded messages of the open chat ----
+
+  let summaryEl = null;
+  function closeSummary() {
+    summaryEl?.remove();
+    summaryEl = null;
+  }
+
+  async function summarizeChat() {
+    if (busy) return;
+    const messages = chatBubbles().slice(-60).map(readMessage);
+    if (!messages.length) return toast("No messages to summarise yet.");
+    const chat = chatTitle();
+    setBusy(true);
+    try {
+      const res = await askBackground({ type: "summarize", messages });
+      if (res.error) return showError(res);
+      if (chatTitle() !== chat) return; // switched chats meanwhile
+      closeSummary();
+      summaryEl = document.createElement("div");
+      summaryEl.className = "wr-summary";
+      const head = document.createElement("div");
+      head.className = "wr-summary-head";
+      const title = document.createElement("strong");
+      title.textContent = `Catch-up: ${chat || "this chat"}`;
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "✕";
+      close.setAttribute("aria-label", "Close summary");
+      close.addEventListener("click", closeSummary);
+      head.append(title, close);
+      const body = document.createElement("div");
+      body.className = "wr-summary-body";
+      body.textContent = res.text; // model output from other people's messages: text only
+      summaryEl.append(head, body);
+      document.body.append(summaryEl);
+      const main = document.querySelector("#main")?.getBoundingClientRect();
+      const header = document.querySelector("#main header")?.getBoundingClientRect();
+      if (main && header) {
+        summaryEl.style.top = `${header.bottom + 8}px`;
+        summaryEl.style.right = `${Math.max(8, window.innerWidth - main.right + 16)}px`;
+      }
+    } finally {
+      setBusy(false);
+      updateVisibility();
+    }
+  }
+
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape" || (!picker && !summaryEl)) return;
+      closePicker();
+      closeSummary();
+    },
+    true
+  );
+  document.addEventListener("mousedown", (e) => picker && !picker.contains(e.target) && closePicker(), true);
 
   // ---- UI injection: one ✨▾ pill per editor, left of its send button ----
   // Editors are the chat's compose box and WhatsApp's "Edit message" box.
@@ -555,7 +688,7 @@
     btn.textContent = "✨";
     // Keep focus/selection in the editor when clicking.
     btn.addEventListener("mousedown", (e) => e.preventDefault());
-    btn.addEventListener("click", () => refineDraft(editor));
+    btn.addEventListener("click", () => refineDraft(editor, true));
 
     // Tone picker: a small caret with an invisible native <select> on top.
     const tone = document.createElement("label");
@@ -572,6 +705,7 @@
     }
     select.addEventListener("change", () => {
       currentTone = select.value;
+      saveChatTone(currentTone);
       syncToneUI();
     });
     tone.appendChild(select);
@@ -609,6 +743,18 @@
   }
 
   function inject() {
+    applyChatTone();
+    // 📝 button in the chat header. A <button> with no dir/span, so chatTitle() still finds the name.
+    const header = document.querySelector("#main header");
+    if (header && !header.querySelector(".wr-catchup")) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "wr-catchup";
+      b.textContent = "📝";
+      b.title = "Catch me up: summarise this chat";
+      b.addEventListener("click", summarizeChat);
+      header.append(b);
+    }
     let added = false;
     for (const ed of allEditors()) {
       let bar = bars.get(ed);

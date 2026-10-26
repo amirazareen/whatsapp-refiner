@@ -16,7 +16,7 @@
     h1 { font-size: 20px; margin: 0 0 4px; }
     p.sub { color: var(--muted); margin: 0 0 24px; }
     label { display: block; font-weight: 600; margin: 16px 0 6px; }
-    input, select { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border);
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border);
       border-radius: 6px; background: var(--card); color: var(--fg); font: inherit; }
     .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
     label.check { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-top: 20px; cursor: pointer; }
@@ -46,7 +46,14 @@
       <option value="concise">Concise</option>
       <option value="formal">Formal</option>
       <option value="grammar">Fix grammar only</option>
+      <option value="to_en">→ English</option>
+      <option value="to_ms">→ Bahasa Melayu</option>
     </select>
+    <div class="hint">Each chat remembers the last tone you picked there; this is the tone for chats you haven't set.</div>
+
+    <label for="aboutMe">About me</label>
+    <textarea id="aboutMe" rows="3" placeholder="e.g. I'm Amir, IT support. Call my wife sayang. Keep work replies short."></textarea>
+    <div class="hint">Sent with every refine, reply and summary so the results sound like you.</div>
 
     <label for="model">Model</label>
     <select id="model">

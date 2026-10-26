@@ -159,3 +159,105 @@ body.dark .wr-reply-btn {
   cursor: pointer;
   white-space: nowrap;
 }
+
+/* 3-version picker, above the ✨ pill */
+.wr-picker {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 8px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111b21;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.wr-picker button {
+  display: block;
+  padding: 8px 10px;
+  border: 1px solid #d1d7db;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+.wr-picker button:hover,
+.wr-picker button:focus-visible {
+  border-color: #00a884;
+  background: rgba(0, 168, 132, 0.08);
+}
+.wr-picker-label {
+  display: block;
+  margin-bottom: 2px;
+  color: #667781;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* 📝 catch-up button in the chat header, and its summary panel */
+.wr-catchup {
+  margin: 0 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wr-catchup:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+.wr-catchup:disabled {
+  cursor: progress;
+  animation: wr-spin 1s linear infinite;
+}
+.wr-summary {
+  position: fixed;
+  top: 70px;
+  right: 16px;
+  z-index: 10000;
+  width: min(380px, calc(100vw - 32px));
+  max-height: 60vh;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111b21;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+}
+.wr-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #d1d7db;
+}
+.wr-summary-head button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.wr-summary-body {
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+body.dark .wr-picker,
+body.dark .wr-summary {
+  background: #233138;
+  color: #e9edef;
+}
+body.dark .wr-picker button,
+body.dark .wr-summary-head {
+  border-color: #3b4a54;
+}
