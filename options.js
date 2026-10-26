@@ -6,11 +6,12 @@ function status(text, kind = "") {
   el.className = kind;
 }
 
-chrome.storage.local.get(["apiKey", "defaultTone", "model", "refineContext"], (s) => {
+chrome.storage.local.get(["apiKey", "defaultTone", "model", "refineContext", "aboutMe"], (s) => {
   $("apiKey").value = s.apiKey || "";
   $("defaultTone").value = s.defaultTone || "polished";
   $("model").value = s.model || "claude-haiku-5-5";
   $("refineContext").checked = s.refineContext !== false;
+  $("aboutMe").value = s.aboutMe || "";
 });
 
 async function save() {
@@ -19,12 +20,13 @@ async function save() {
     defaultTone: $("defaultTone").value,
     model: $("model").value,
     refineContext: $("refineContext").checked,
+    aboutMe: $("aboutMe").value.trim(),
   });
 }
 
 $("save").addEventListener("click", async () => {
   await save();
-  status("Saved. Reload WhatsApp Web to apply the new default tone.", "ok");
+  status("Saved. Reload WhatsApp Web to apply a new default tone.", "ok");
 });
 
 $("test").addEventListener("click", async () => {
