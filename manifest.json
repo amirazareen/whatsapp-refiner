@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp Text Refiner",
-  "version": "1.0.0",
-  "description": "Refine your WhatsApp Web drafts with Claude before you send them.",
+  "version": "1.1.0",
+  "description": "Refine your WhatsApp Web drafts with Claude or OpenAI before you send them.",
   "permissions": ["storage"],
-  "host_permissions": ["https://api.anthropic.com/*"],
+  "host_permissions": ["https://api.anthropic.com/*", "https://api.openai.com/*"],
   "background": {
     "service_worker": "background.js"
   },
