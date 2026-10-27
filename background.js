@@ -232,10 +232,37 @@ async function callOpenAI(system, content, maxTokens = 4096) {
   return { text: out };
 }
 
+const CALLERS = { anthropic: callClaude, openai: callOpenAI };
+// Worth retrying elsewhere; a refusal or empty result would likely repeat, so it isn't.
+const SWITCH_ON = ["network", "bad_key", "limit", "server"];
+
+// Main provider first, the other as backup; only providers with a key. `only` forces one (Test key).
+async function callAI(system, content, maxTokens = 4096, only) {
+  const s = await chrome.storage.local.get(["apiKey", "openaiKey", "mainProvider", "aboutMe"]);
+  const hasKey = { anthropic: !!s.apiKey?.trim(), openai: !!s.openaiKey?.trim() };
+  const main = s.mainProvider === "openai" ? "openai" : "anthropic";
+  const order = CALLERS[only] ? [only] : [main, main === "openai" ? "anthropic" : "openai"].filter((p) => hasKey[p]);
+  if (!order.length) {
+    return { error: "no_key", message: "Add an Anthropic or OpenAI API key in the extension options." };
+  }
+  if (s.aboutMe?.trim()) {
+    system += `
+
+About the user, from their settings (use it for context and style only): ${s.aboutMe.trim()}`;
+  }
+
+  const first = await CALLERS[order[0]](system, content, maxTokens);
+  if (!first.error) return { ...first, provider: order[0] };
+  if (!order[1] || !SWITCH_ON.includes(first.error)) return first;
+  const second = await CALLERS[order[1]](system, content, maxTokens);
+  if (!second.error) return { ...second, provider: order[1], backup: true };
+  return { ...first, message: `${first.message} (Backup also failed: ${second.message})` };
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "refine") {
     const withContext = !!(msg.context?.length || msg.replyingTo);
-    callClaude(refineSystemPrompt(msg.tone, withContext, msg.variants), refineUserContent(msg))
+    callAI(refineSystemPrompt(msg.tone, withContext, msg.variants), refineUserContent(msg), 4096, msg.provider)
       // No clean 3 versions: fall back to the first one, inserted directly.
       .then((res) => {
         if (!msg.variants || !res.text) return res;
@@ -247,11 +274,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === "summarize") {
     const convo = `<conversation>\n${msg.messages.map(formatLine).join("\n")}\n</conversation>\n\nSummarise this chat for me.`;
-    callClaude(SUMMARY_SYSTEM_PROMPT, convo, 1500).then(sendResponse);
+    callAI(SUMMARY_SYSTEM_PROMPT, convo, 1500).then(sendResponse);
     return true;
   }
   if (msg?.type === "draftReply") {
-    callClaude(REPLY_SYSTEM_PROMPT, replyUserContent(msg)).then(sendResponse);
+    callAI(REPLY_SYSTEM_PROMPT, replyUserContent(msg)).then(sendResponse);
     return true;
   }
   if (msg?.type === "openOptions") {
