@@ -391,6 +391,9 @@
     }
   }
 
+  // Shown when the main provider failed and the backup answered.
+  const via = (res) => (res.backup ? ` · via ${res.provider === "openai" ? "OpenAI" : "Claude"} (backup)` : "");
+
   function showError(res) {
     const needsKey = res.error === "no_key" || res.error === "bad_key";
     toast(res.message, needsKey
@@ -458,7 +461,7 @@
         ...(await refineContext(editor)),
       });
       if (res.error) return showError(res);
-      if (res.versions) return showPicker(editor, original, res.versions);
+      if (res.versions) return showPicker(editor, original, res.versions, via(res));
 
       // Don't clobber edits the user made while waiting.
       const ed = editor.isConnected ? editor : null;
@@ -470,7 +473,7 @@
         toast("Already looks good. No changes.");
         return;
       }
-      await insertWithUndo(ed, res.text, original, "Refined. Review it, then press Enter to send.");
+      await insertWithUndo(ed, res.text, original, `Refined. Review it, then press Enter to send.${via(res)}`);
     } finally {
       setBusy(false);
       updateVisibility();
@@ -507,7 +510,7 @@
         toast("You typed while the reply was drafting, so your text was left as is.");
         return;
       }
-      await insertWithUndo(ed, res.text, previous, "Reply drafted. Review it, then press Enter to send.");
+      await insertWithUndo(ed, res.text, previous, `Reply drafted. Review it, then press Enter to send.${via(res)}`);
     } finally {
       bubble.classList.remove("wr-target");
       setBusy(false);
@@ -523,7 +526,7 @@
     picker = null;
   }
 
-  function showPicker(editor, original, versions) {
+  function showPicker(editor, original, versions, note = "") {
     closePicker();
     picker = document.createElement("div");
     picker.className = "wr-picker";
@@ -540,7 +543,7 @@
         if (!editor.isConnected || norm(getDraft(editor)) !== norm(original)) {
           return toast("Draft changed, so nothing was inserted.");
         }
-        await insertWithUndo(editor, versions[i], original, "Inserted. Review it, then press Enter to send.");
+        await insertWithUndo(editor, versions[i], original, `Inserted. Review it, then press Enter to send.${note}`);
       });
       picker.append(b);
     });
@@ -574,7 +577,7 @@
       const head = document.createElement("div");
       head.className = "wr-summary-head";
       const title = document.createElement("strong");
-      title.textContent = `Catch-up: ${chat || "this chat"}`;
+      title.textContent = `Catch-up: ${chat || "this chat"}${via(res)}`;
       const close = document.createElement("button");
       close.type = "button";
       close.textContent = "✕";
