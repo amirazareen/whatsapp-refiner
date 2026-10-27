@@ -164,3 +164,17 @@ test("About me reaches OpenAI too", async () => {
   await send({ type: "summarize", messages: [{ text: "hi" }] });
   assert.match(sent[0].messages[0].content, /About the user.*I'm Alex\./);
 });
+
+test("About me appears exactly once in the Claude system prompt", async () => {
+  const { sent, send } = load({ aboutMe: "I'm Alex." });
+  await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.equal(sent[0].system.split("About the user").length, 2);
+});
+
+test("refine fallback to first version keeps the backup note", async () => {
+  const { send } = load({ openaiKey: "sk-o" }, "one\n---\ntwo", { anthropic: fail(500) });
+  const r = await send({ type: "refine", text: "x", tone: "polished", variants: true });
+  assert.equal(r.text, "one");
+  assert.equal(r.backup, true);
+  assert.equal(r.provider, "openai");
+});

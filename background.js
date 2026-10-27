@@ -114,12 +114,9 @@ function replyUserContent({ messages, targetIndex, styleExamples, images }) {
 }
 
 async function callClaude(system, content, maxTokens = 4096) {
-  const { apiKey, model, aboutMe } = await chrome.storage.local.get(["apiKey", "model", "aboutMe"]);
+  const { apiKey, model } = await chrome.storage.local.get(["apiKey", "model"]);
   if (!apiKey) {
     return { error: "no_key", message: "Add your Anthropic API key in the extension options." };
-  }
-  if (aboutMe?.trim()) {
-    system += `\n\nAbout the user, from their settings (use it for context and style only): ${aboutMe.trim()}`;
   }
 
   let res;
@@ -267,7 +264,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .then((res) => {
         if (!msg.variants || !res.text) return res;
         const versions = splitVersions(res.text);
-        return versions ? { ...res, versions } : { text: res.text.split(/^\s*---\s*$/m)[0].trim() };
+        return versions ? { ...res, versions } : { ...res, text: res.text.split(/^\s*---\s*$/m)[0].trim() };
       })
       .then(sendResponse);
     return true; // async response
