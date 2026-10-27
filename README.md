@@ -10,6 +10,7 @@ A Chrome/Edge extension that refines your WhatsApp Web drafts with Claude before
 - **About me** note in settings, sent with every request so results sound like you
 - **📝 Catch me up:** button in the chat header that summarises the loaded messages and lists what is waiting for your answer
 - **💬 Draft reply:** hover over any incoming message and click 💬. Claude reads the recent conversation and writes a reply to that message in your own style (learned from your messages in the chat), then puts it in the message box.
+- Works with an **Anthropic (Claude) or OpenAI API key**, or both: pick the main one, and the other is used as a backup if the main one fails (bad key, out of credit, rate limit, outage). The message toast then says "via … (backup)"
 - Never sends anything for you: you review the result and press Enter yourself
 - **Undo** in the toast, or Ctrl+Z
 
@@ -18,12 +19,12 @@ A Chrome/Edge extension that refines your WhatsApp Web drafts with Claude before
 1. Open `chrome://extensions` (or `edge://extensions`).
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and pick this folder.
-4. Click the extension's toolbar icon to open settings. Paste your Anthropic API key, then click **Test key**.
+4. Click the extension's toolbar icon to open settings. Paste an Anthropic and/or OpenAI API key, choose the main provider if you set both, then click **Test keys**.
 5. Open (or reload) https://web.whatsapp.com.
 
 ## Privacy
 
-Your draft is sent to `api.anthropic.com` only when you click ✨ or press Alt+R. Unless you untick "Use chat context when refining" in settings, the last 12 messages of the open chat (text only) are sent with it so the rewrite fits the conversation. When you click 💬, the open chat's recently loaded messages (up to about 25 around the chosen one, plus up to 15 of your older messages there as style examples), with the senders' names and times, are sent too. That includes the other person's messages, any quoted text, and up to 4 pictures from the message you're replying to (so Claude can read screenshots). When you click 📝, up to the last 60 loaded messages of the open chat (text, names and times) are sent. Your "About me" note, if set, is sent with every request. The API key is kept in the browser's local extension storage. There is no analytics or other network traffic.
+Your draft is sent to your main provider (`api.anthropic.com` or `api.openai.com`) only when you click ✨ or press Alt+R. Unless you untick "Use chat context when refining" in settings, the last 12 messages of the open chat (text only) are sent with it so the rewrite fits the conversation. When you click 💬, the open chat's recently loaded messages (up to about 25 around the chosen one, plus up to 15 of your older messages there as style examples), with the senders' names and times, are sent too. That includes the other person's messages, any quoted text, and up to 4 pictures from the message you're replying to (so the AI can read screenshots). When you click 📝, up to the last 60 loaded messages of the open chat (text, names and times) are sent. Your "About me" note, if set, is sent with every request. If both keys are set and the main provider fails (network error, bad key, out of credit, rate limit or outage), the same request is sent to the other provider; it is not resent when the AI declines a request. The API keys are kept in the browser's local extension storage. There is no analytics or other network traffic.
 
 ## Troubleshooting
 

@@ -28,6 +28,7 @@
     #status { margin-top: 12px; min-height: 1.5em; }
     #status.err { color: var(--err); }
     #status.ok { color: var(--accent); }
+    #status { white-space: pre-line; }
   </style>
 </head>
 <body>
@@ -38,6 +39,17 @@
     <label for="apiKey">Anthropic API key</label>
     <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
     <div class="hint">Stored only in this browser. Get one at console.anthropic.com.</div>
+
+    <label for="openaiKey">OpenAI API key</label>
+    <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off">
+    <div class="hint">Optional. Stored only in this browser. Get one at platform.openai.com.</div>
+
+    <label for="mainProvider">Main provider</label>
+    <select id="mainProvider">
+      <option value="anthropic">Claude</option>
+      <option value="openai">OpenAI</option>
+    </select>
+    <div class="hint">Used first when both keys are set. The other is the backup, used only when the main one fails. With one key, that one is always used.</div>
 
     <label for="defaultTone">Default tone</label>
     <select id="defaultTone">
@@ -55,11 +67,18 @@
     <textarea id="aboutMe" rows="3" placeholder="e.g. I'm Alex, IT support. Keep work replies short."></textarea>
     <div class="hint">Sent with every refine, reply and summary so the results sound like you.</div>
 
-    <label for="model">Model</label>
+    <label for="model">Claude model</label>
     <select id="model">
       <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
       <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
       <option value="claude-opus-5-5">Claude Opus 5.5 (best quality)</option>
+    </select>
+
+    <label for="openaiModel">OpenAI model</label>
+    <select id="openaiModel">
+      <option value="gpt-6-luna">GPT-6 Luna (fastest, cheapest)</option>
+      <option value="gpt-6.1-terra">GPT-6.1 Terra</option>
+      <option value="gpt-6.1-sol">GPT-6.1 Sol (best quality)</option>
     </select>
 
     <label class="check" for="refineContext">
@@ -70,7 +89,7 @@
 
     <div class="row">
       <button id="save" class="primary">Save</button>
-      <button id="test">Test key</button>
+      <button id="test">Test keys</button>
     </div>
     <div id="status"></div>
   </main>
