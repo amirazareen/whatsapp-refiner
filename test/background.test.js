@@ -6,9 +6,14 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-function load(storage = {}, reply = "ok") {
+function load(storage = {}, reply = "ok", responses = {}) {
   const sent = [];
+  const calls = [];
   let listener;
+  const defaults = {
+    anthropic: { status: 200, body: { stop_reason: "end_turn", content: [{ type: "text", text: reply }] } },
+    openai: { status: 200, body: { choices: [{ message: { content: reply }, finish_reason: "stop" }] } },
+  };
   const ctx = {
     console,
     chrome: {
@@ -16,14 +21,18 @@ function load(storage = {}, reply = "ok") {
       runtime: { onMessage: { addListener: (fn) => (listener = fn) }, openOptionsPage() {} },
       action: { onClicked: { addListener() {} } },
     },
-    fetch: async (_url, init) => {
-      sent.push(JSON.parse(init.body));
-      return { ok: true, status: 200, json: async () => ({ stop_reason: "end_turn", content: [{ type: "text", text: reply }] }) };
+    fetch: async (url, init) => {
+      const body = JSON.parse(init.body);
+      sent.push(body);
+      calls.push({ url, body });
+      const which = url.includes("openai.com") ? "openai" : "anthropic";
+      const r = responses[which] || defaults[which];
+      return { ok: r.status < 300, status: r.status, json: async () => r.body };
     },
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "..", "background.js"), "utf8"), ctx);
   const send = (msg) => new Promise((r) => listener(msg, {}, r));
-  return { ctx, sent, send };
+  return { ctx, sent, calls, send };
 }
 
 test("translate tones replace the keep-language rule", () => {
@@ -64,4 +73,35 @@ test("summary request sends the chat and a short output limit", async () => {
   assert.equal(sent[0].max_tokens, 1500);
   assert.match(sent[0].messages[0].content, /\[7:04 PM\] Aiden: PDF is corrupted/);
   assert.match(sent[0].system, /Waiting for you:/);
+});
+
+test("toOpenAIContent converts image blocks to data URLs", () => {
+  const { ctx } = load();
+  const out = ctx.toOpenAIContent([
+    { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "AAA" } },
+    { type: "text", text: "hi" },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(out)), [
+    { type: "image_url", image_url: { url: "data:image/jpeg;base64,AAA" } },
+    { type: "text", text: "hi" },
+  ]);
+  assert.equal(ctx.toOpenAIContent("plain"), "plain");
+});
+
+test("callOpenAI sends system + user and reads choices", async () => {
+  const { ctx, calls } = load({ openaiKey: "sk-o", openaiModel: "m1" }, "done");
+  const r = await ctx.callOpenAI("SYS", "hello", 1500);
+  assert.equal(r.text, "done");
+  assert.match(calls[0].url, /api\.openai\.com\/v1\/chat\/completions/);
+  assert.equal(calls[0].body.model, "m1");
+  assert.deepEqual(calls[0].body.messages.map((m) => m.role), ["system", "user"]);
+});
+
+test("status codes map to the same error codes for both providers", async () => {
+  for (const [status, code] of [[401, "bad_key"], [429, "limit"], [529, "server"], [400, "api"]]) {
+    const err = { error: { message: "x" } };
+    const { ctx } = load({ openaiKey: "sk-o" }, "ok", { anthropic: { status, body: err }, openai: { status, body: err } });
+    assert.equal((await ctx.callClaude("s", "c")).error, code);
+    assert.equal((await ctx.callOpenAI("s", "c")).error, code);
+  }
 });

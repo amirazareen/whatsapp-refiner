@@ -1,8 +1,10 @@
-// Service worker: holds the API key and talks to the Claude Messages API.
-// The content script never sees the key.
+// Service worker: holds the API keys and talks to the Claude Messages API
+// or OpenAI Chat Completions. The content script never sees the keys.
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-haiku-5-5";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
 
 const TONES = {
   polished: "polished and clear, natural for a chat message",
@@ -146,13 +148,12 @@ async function callClaude(system, content, maxTokens = 4096) {
   try {
     data = await res.json();
   } catch (e) {
-    return { error: "api", message: `Claude API error (HTTP ${res.status}).` };
+    return { error: errorCode(res.status), message: `Claude API error (HTTP ${res.status}).` };
   }
 
   if (!res.ok) {
     const msg = data?.error?.message || `HTTP ${res.status}`;
-    const code = res.status === 401 ? "bad_key" : "api";
-    return { error: code, message: `Claude API error: ${msg}` };
+    return { error: errorCode(res.status), message: `Claude API error: ${msg}` };
   }
   if (data.stop_reason === "refusal") {
     return { error: "refusal", message: "Claude declined this request." };
@@ -166,6 +167,68 @@ async function callClaude(system, content, maxTokens = 4096) {
     .trim();
 
   if (!out) return { error: "empty", message: "Claude returned an empty result." };
+  return { text: out };
+}
+
+// Same codes for both providers, so the router can decide when to use the backup.
+function errorCode(status) {
+  if (status === 401 || status === 403) return "bad_key";
+  if (status === 402 || status === 429) return "limit";
+  if (status >= 500) return "server";
+  return "api";
+}
+
+// Anthropic-style content blocks -> OpenAI message parts.
+function toOpenAIContent(content) {
+  if (typeof content === "string") return content;
+  return content.map((b) =>
+    b.type === "image"
+      ? { type: "image_url", image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } }
+      : { type: "text", text: b.text }
+  );
+}
+
+async function callOpenAI(system, content, maxTokens = 4096) {
+  const { openaiKey, openaiModel } = await chrome.storage.local.get(["openaiKey", "openaiModel"]);
+  if (!openaiKey) {
+    return { error: "no_key", message: "Add your OpenAI API key in the extension options." };
+  }
+
+  let res;
+  try {
+    res = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${openaiKey}` },
+      body: JSON.stringify({
+        model: openaiModel || DEFAULT_OPENAI_MODEL,
+        max_completion_tokens: maxTokens,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: toOpenAIContent(content) },
+        ],
+      }),
+    });
+  } catch (e) {
+    return { error: "network", message: "Network error: could not reach the OpenAI API." };
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    return { error: errorCode(res.status), message: `OpenAI API error (HTTP ${res.status}).` };
+  }
+
+  if (!res.ok) {
+    const msg = data?.error?.message || `HTTP ${res.status}`;
+    return { error: errorCode(res.status), message: `OpenAI API error: ${msg}` };
+  }
+  const choice = data.choices?.[0];
+  if (choice?.finish_reason === "content_filter" || choice?.message?.refusal) {
+    return { error: "refusal", message: "OpenAI declined this request." };
+  }
+  const out = (choice?.message?.content || "").trim();
+  if (!out) return { error: "empty", message: "OpenAI returned an empty result." };
   return { text: out };
 }
 
