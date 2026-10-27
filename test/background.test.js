@@ -105,3 +105,62 @@ test("status codes map to the same error codes for both providers", async () => 
     assert.equal((await ctx.callOpenAI("s", "c")).error, code);
   }
 });
+
+const fail = (status) => ({ status, body: { error: { message: "boom" } } });
+
+test("one key: only that provider is used", async () => {
+  const { calls, send } = load({ apiKey: "", openaiKey: "sk-o" });
+  const r = await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /openai/);
+  assert.equal(r.backup, undefined);
+});
+
+test("both keys: main goes first, backup on switchable error", async () => {
+  const { calls, send } = load({ openaiKey: "sk-o", mainProvider: "openai" }, "ok", { openai: fail(429) });
+  const r = await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.deepEqual(calls.map((c) => (/openai/.test(c.url) ? "o" : "a")), ["o", "a"]);
+  assert.equal(r.backup, true);
+  assert.equal(r.provider, "anthropic");
+});
+
+test("refusal does not switch to backup", async () => {
+  const refused = { status: 200, body: { stop_reason: "refusal", content: [] } };
+  const { calls, send } = load({ openaiKey: "sk-o" }, "ok", { anthropic: refused });
+  const r = await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.equal(calls.length, 1);
+  assert.equal(r.error, "refusal");
+});
+
+test("both fail: main error with backup error appended", async () => {
+  const { send } = load({ openaiKey: "sk-o" }, "ok", { anthropic: fail(500), openai: fail(401) });
+  const r = await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.equal(r.error, "server");
+  assert.match(r.message, /Backup also failed: OpenAI API error/);
+});
+
+test("provider override tests one key only, no fallback", async () => {
+  const { calls, send } = load({ openaiKey: "sk-o" }, "ok", { openai: fail(401) });
+  const r = await send({ type: "refine", text: "x", tone: "polished", provider: "openai" });
+  assert.equal(calls.length, 1);
+  assert.equal(r.error, "bad_key");
+});
+
+test("no keys names both providers", async () => {
+  const r = await load({ apiKey: "" }).send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.equal(r.error, "no_key");
+  assert.match(r.message, /Anthropic.*OpenAI/);
+});
+
+test("whitespace-only main key counts as missing: backup alone, no backup flag", async () => {
+  const { calls, send } = load({ apiKey: "   ", openaiKey: "sk-o" });
+  const r = await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.equal(calls.length, 1);
+  assert.equal(r.backup, undefined);
+});
+
+test("About me reaches OpenAI too", async () => {
+  const { sent, send } = load({ apiKey: "", openaiKey: "sk-o", aboutMe: "I'm Alex." });
+  await send({ type: "summarize", messages: [{ text: "hi" }] });
+  assert.match(sent[0].messages[0].content, /About the user.*I'm Alex\./);
+});
