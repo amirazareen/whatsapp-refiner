@@ -209,3 +209,23 @@ test("refine without mentions is unchanged", async () => {
   assert.equal(r.wa, undefined);
   assert.doesNotMatch(sent[0].system, /\{M1\}/);
 });
+
+test("explain sends the target with images, its own prompt and an 800 limit", async () => {
+  const { sent, send } = load({ aboutMe: "IT support" }, "It shows a blocked site.");
+  const r = await send({ type: "explain", messages: [{ fromMe: false, sender: "Sandeep", text: "can't open" }], targetIndex: 0, images: ["AAA"] });
+  assert.equal(r.text, "It shows a blocked site.");
+  assert.equal(sent[0].max_tokens, 800);
+  assert.match(sent[0].system, /explain/i);
+  assert.match(sent[0].system, /About the user.*IT support/);
+  const blocks = sent[0].messages[0].content;
+  assert.equal(blocks[0].type, "image");
+  assert.match(blocks.at(-1).text, />>> TARGET >>>.*Sandeep: can't open/);
+  assert.match(blocks.at(-1).text, /Explain the TARGET message for me\./);
+  assert.doesNotMatch(blocks.at(-1).text, /Draft my reply/);
+});
+
+test("draft reply still ends with the reply request", async () => {
+  const { sent, send } = load();
+  await send({ type: "draftReply", messages: [{ fromMe: false, text: "hi" }], targetIndex: 0 });
+  assert.match(sent[0].messages[0].content.at(-1).text, /Draft my reply to the TARGET message\./);
+});
