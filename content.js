@@ -910,15 +910,16 @@
       clearTimeout(hideTimer);
       hoverBubble = row;
       ensureHoverBtns();
-      // Sit on the bubble's top-right corner: 💬 there (others' messages only), 💡 just left of it.
+      // Top-right of the bubble, left of WhatsApp's ▾ menu (r.right-29..r.right-5):
+      // 💬 there (others' messages only), 💡 just left of it.
       const r = bubbleRect(row);
       const paneTop = chatPane().getBoundingClientRect().top;
       const top = `${Math.max(paneTop + 2, r.top - 10)}px`;
-      const left = Math.min(window.innerWidth - 30, r.right - 14);
+      const left = Math.min(window.innerWidth - 30, r.right - 58);
       const mine = isMine(row);
       replyBtn.style.top = explainBtn.style.top = top;
       replyBtn.style.left = `${left}px`;
-      explainBtn.style.left = `${mine ? left : left - 28}px`;
+      explainBtn.style.left = `${mine ? left : left - 26}px`;
       replyBtn.classList.toggle("wr-show", !mine);
       explainBtn.classList.add("wr-show");
     },
