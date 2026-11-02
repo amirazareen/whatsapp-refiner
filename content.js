@@ -886,7 +886,8 @@
     let el =
       row.querySelector("[data-pre-plain-text]") ||
       row.querySelector("span.selectable-text") ||
-      row.querySelector("img, video, canvas");
+      // Skip the sender's small avatar in group chats; it sits outside the bubble.
+      [...row.querySelectorAll("img, video, canvas")].find((m) => m.getBoundingClientRect().width > 60);
     if (!el) return row;
     let best = el;
     while (el && el !== row) {
