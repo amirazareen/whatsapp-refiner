@@ -178,3 +178,34 @@ test("refine fallback to first version keeps the backup note", async () => {
   assert.equal(r.backup, true);
   assert.equal(r.provider, "openai");
 });
+
+const M = [{ token: "​111@lid​", name: "@Redha DIGICERT" }, { token: "​222@lid​", name: "@Aiden" }];
+
+test("maskMentions swaps markers for placeholders, same marker same placeholder", () => {
+  const { ctx } = load();
+  assert.equal(ctx.maskMentions(`Hi ${M[0].token} and ${M[1].token}, ${M[0].token}`, M), "Hi {M1} and {M2}, {M1}");
+});
+
+test("unmaskMentions restores names and markers, prepending missing ones", () => {
+  const { ctx } = load();
+  const r = ctx.unmaskMentions("Please check, {M2}", M);
+  assert.equal(r.text, "@Redha DIGICERT Please check, @Aiden");
+  assert.equal(r.wa, `${M[0].token} Please check, ${M[1].token}`);
+});
+
+test("refine with mentions never sends markers and returns wa versions", async () => {
+  const { sent, send } = load({}, "short {M1}\n---\nbest {M1}\n---\nother");
+  const r = await send({ type: "refine", text: "hi @Redha DIGICERT", wa: `hi ${M[0].token}`, mentions: [M[0]], tone: "polished", variants: true });
+  assert.doesNotMatch(JSON.stringify(sent[0]), /111@lid/);
+  assert.match(sent[0].system, /\{M1\}/);
+  assert.deepEqual([...r.versions], ["short @Redha DIGICERT", "best @Redha DIGICERT", "@Redha DIGICERT other"]);
+  assert.equal(r.was[2], `${M[0].token} other`);
+});
+
+test("refine without mentions is unchanged", async () => {
+  const { sent, send } = load();
+  const r = await send({ type: "refine", text: "hi", tone: "polished" });
+  assert.equal(sent[0].messages[0].content, "hi");
+  assert.equal(r.wa, undefined);
+  assert.doesNotMatch(sent[0].system, /\{M1\}/);
+});
