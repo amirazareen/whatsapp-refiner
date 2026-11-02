@@ -11,6 +11,7 @@ A Chrome/Edge extension that refines your WhatsApp Web drafts with Claude before
 - **📝 Catch me up:** button in the chat header that summarises the loaded messages and lists what is waiting for your answer
 - **💬 Draft reply:** hover over any incoming message and click 💬. Claude reads the recent conversation and writes a reply to that message in your own style (learned from your messages in the chat), then puts it in the message box.
 - Works with an **Anthropic (Claude) or OpenAI API key**, or both: pick the main one, and the other is used as a backup if the main one fails (bad key, out of credit, rate limit, outage). The message toast then says "via … (backup)"
+- ✨ keeps @mentions as real tags (if one can't be kept, the toast tells you to re-tag it)
 - Never sends anything for you: you review the result and press Enter yourself
 - **Undo** in the toast, or Ctrl+Z
 

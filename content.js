@@ -286,20 +286,37 @@
     return handled;
   }
 
-  function paste(editor, text) {
+  // `wa` is WhatsApp's own clipboard format, which keeps @mentions as real tags.
+  function paste(editor, text, wa) {
     const dt = new DataTransfer();
     dt.setData("text/plain", text);
+    if (wa) dt.setData("application/whatsapp", wa);
     const e = new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true });
     editor.dispatchEvent(e);
     return e.defaultPrevented;
   }
 
+  const TAG = "[data-app-text-template]";
+
+  // The draft in WhatsApp's clipboard format: each tag is a hidden "​<id>@lid​" marker.
+  async function copyDraft(editor) {
+    await selectAll(editor);
+    const dt = new DataTransfer();
+    editor.dispatchEvent(new ClipboardEvent("copy", { clipboardData: dt, bubbles: true, cancelable: true }));
+    window.getSelection().collapseToEnd(); // don't leave the draft selected if the refine fails
+    const wa = dt.getData("application/whatsapp");
+    if (!wa) return null;
+    const tokens = [...new Set(wa.match(/​[^​\s]+@[a-z.]+​/g) || [])];
+    const nameOf = (t) => Array.from(editor.querySelectorAll(TAG)).find((s) => s.getAttribute("data-app-text-template") === t);
+    return { wa, mentions: tokens.map((token) => ({ token, name: nameOf(token)?.textContent || "@" })) };
+  }
+
   // Each strategy replaces the whole draft; the first one that verifies wins.
   const STRATEGIES = {
-    // Keeps newlines and emojis.
-    async paste(editor, text) {
+    // Keeps newlines and emojis (and tags, when `wa` is given).
+    async paste(editor, text, wa) {
       await selectAll(editor);
-      return paste(editor, text);
+      return paste(editor, text, wa);
     },
     // Empty the box first, so even an out-of-sync selection can't append.
     async clearThenInsert(editor, text) {
@@ -314,7 +331,7 @@
     },
   };
 
-  async function setDraft(editor, text) {
+  async function setDraft(editor, text, wa) {
     const before = getDraft(editor);
     // Compare on letters/digits unless the change is only punctuation/emoji.
     const key = loose(text) !== loose(before) ? loose : norm;
@@ -325,7 +342,7 @@
     for (const [name, run] of Object.entries(STRATEGIES)) {
       let result;
       try {
-        result = await run(editor, text);
+        result = await run(editor, text, wa);
       } catch (e) {
         result = "threw: " + e.message;
       }
@@ -402,8 +419,9 @@
   }
 
   // Put `text` in the box (replacing `previous`), with Undo back to `previous`.
-  async function insertWithUndo(ed, text, previous, doneMessage) {
-    if (!(await setDraft(ed, text))) {
+  // Last argument, when the draft had @mentions: { wa, previousWa, mentions }, so they stay real tags.
+  async function insertWithUndo(ed, text, previous, doneMessage, { wa, previousWa, mentions = [] } = {}) {
+    if (!(await setDraft(ed, text, wa))) {
       let copied = false;
       try {
         await navigator.clipboard.writeText(text);
@@ -417,12 +435,16 @@
       );
       return;
     }
+    const kept = new Set(Array.from(ed.querySelectorAll(TAG), (s) => s.getAttribute("data-app-text-template"))).size;
+    if (kept < mentions.length) {
+      doneMessage = `Tags became plain text: re-tag ${mentions.map((m) => m.name).join(", ")} before sending.`;
+    }
     toast(doneMessage, {
       action: "Undo",
       onAction: async () => {
         // Only undo in the same box, and only if it still holds what we put there.
         if (!ed.isConnected || norm(getDraft(ed)) !== norm(text)) return toast("The text changed since, so Undo was skipped.");
-        if (!(await setDraft(ed, previous))) toast("Couldn't undo. Try Ctrl+Z.");
+        if (!(await setDraft(ed, previous, previousWa))) toast("Couldn't undo. Try Ctrl+Z.");
       },
       duration: 8000,
     });
@@ -453,15 +475,23 @@
 
     setBusy(true);
     try {
+      // Tagged draft: send it in WhatsApp's format so the tags can be put back as real tags.
+      const spans = Array.from(editor.querySelectorAll(TAG));
+      const copied = spans.length ? await copyDraft(editor) : null;
+      // Format missing: insert as plain text, and the tag check in insertWithUndo warns.
+      const tags = copied
+        ? { previousWa: copied.wa, mentions: copied.mentions }
+        : { mentions: [...new Set(spans.map((s) => s.textContent))].map((name) => ({ token: null, name })) };
       const res = await askBackground({
         type: "refine",
         text: original,
         tone: currentTone,
         variants,
+        ...(copied || {}),
         ...(await refineContext(editor)),
       });
       if (res.error) return showError(res);
-      if (res.versions) return showPicker(editor, original, res.versions, via(res));
+      if (res.versions) return showPicker(editor, original, res.versions, via(res), res.was, tags);
 
       // Don't clobber edits the user made while waiting.
       const ed = editor.isConnected ? editor : null;
@@ -473,7 +503,10 @@
         toast("Already looks good. No changes.");
         return;
       }
-      await insertWithUndo(ed, res.text, original, `Refined. Review it, then press Enter to send.${via(res)}`);
+      await insertWithUndo(ed, res.text, original, `Refined. Review it, then press Enter to send.${via(res)}`, {
+        ...tags,
+        wa: res.wa,
+      });
     } finally {
       setBusy(false);
       updateVisibility();
@@ -526,7 +559,7 @@
     picker = null;
   }
 
-  function showPicker(editor, original, versions, note = "") {
+  function showPicker(editor, original, versions, note = "", was = [], tags = {}) {
     closePicker();
     picker = document.createElement("div");
     picker.className = "wr-picker";
@@ -543,7 +576,10 @@
         if (!editor.isConnected || norm(getDraft(editor)) !== norm(original)) {
           return toast("Draft changed, so nothing was inserted.");
         }
-        await insertWithUndo(editor, versions[i], original, `Inserted. Review it, then press Enter to send.${note}`);
+        await insertWithUndo(editor, versions[i], original, `Inserted. Review it, then press Enter to send.${note}`, {
+          ...tags,
+          wa: was?.[i],
+        });
       });
       picker.append(b);
     });
