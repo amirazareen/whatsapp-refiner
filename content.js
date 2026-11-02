@@ -306,9 +306,12 @@
     window.getSelection().collapseToEnd(); // don't leave the draft selected if the refine fails
     const wa = dt.getData("application/whatsapp");
     if (!wa) return null;
-    const tokens = [...new Set(wa.match(/​[^​\s]+@[a-z.]+​/g) || [])];
-    const nameOf = (t) => Array.from(editor.querySelectorAll(TAG)).find((s) => s.getAttribute("data-app-text-template") === t);
-    return { wa, mentions: tokens.map((token) => ({ token, name: nameOf(token)?.textContent || "@" })) };
+    const spans = Array.from(editor.querySelectorAll(TAG));
+    const tokens = [...new Set(wa.match(/​[^​\s]+@[a-z.]+​/gi) || [])];
+    // Fewer markers than tags means the format changed: give up, so the caller warns.
+    if (tokens.length < new Set(spans.map((s) => s.getAttribute("data-app-text-template"))).size) return null;
+    const nameOf = (t) => spans.find((s) => s.getAttribute("data-app-text-template") === t);
+    return { wa, mentions: tokens.map((token) => ({ token, name: nameOf(token) ? textOf(nameOf(token)) : "@" })) };
   }
 
   // Each strategy replaces the whole draft; the first one that verifies wins.
@@ -331,7 +334,8 @@
     },
   };
 
-  async function setDraft(editor, text, wa) {
+  // `wa` / `beforeWa`: the new and current text in WhatsApp's format, so tags survive (and a failed insert restores them).
+  async function setDraft(editor, text, wa, beforeWa) {
     const before = getDraft(editor);
     // Compare on letters/digits unless the change is only punctuation/emoji.
     const key = loose(text) !== loose(before) ? loose : norm;
@@ -354,7 +358,7 @@
     // Nothing verified: put the original back so the draft isn't mangled.
     if (key(getDraft(editor)) !== key(before)) {
       await selectAll(editor);
-      paste(editor, before);
+      paste(editor, before, beforeWa);
       await waitFor(() => key(getDraft(editor)) === key(before));
     }
     log.restored = getDraft(editor);
@@ -421,7 +425,7 @@
   // Put `text` in the box (replacing `previous`), with Undo back to `previous`.
   // Last argument, when the draft had @mentions: { wa, previousWa, mentions }, so they stay real tags.
   async function insertWithUndo(ed, text, previous, doneMessage, { wa, previousWa, mentions = [] } = {}) {
-    if (!(await setDraft(ed, text, wa))) {
+    if (!(await setDraft(ed, text, wa, previousWa))) {
       let copied = false;
       try {
         await navigator.clipboard.writeText(text);
@@ -444,7 +448,7 @@
       onAction: async () => {
         // Only undo in the same box, and only if it still holds what we put there.
         if (!ed.isConnected || norm(getDraft(ed)) !== norm(text)) return toast("The text changed since, so Undo was skipped.");
-        if (!(await setDraft(ed, previous, previousWa))) toast("Couldn't undo. Try Ctrl+Z.");
+        if (!(await setDraft(ed, previous, previousWa, wa))) toast("Couldn't undo. Try Ctrl+Z.");
       },
       duration: 8000,
     });
@@ -481,7 +485,7 @@
       // Format missing: insert as plain text, and the tag check in insertWithUndo warns.
       const tags = copied
         ? { previousWa: copied.wa, mentions: copied.mentions }
-        : { mentions: [...new Set(spans.map((s) => s.textContent))].map((name) => ({ token: null, name })) };
+        : { mentions: [...new Set(spans.map(textOf))].map((name) => ({ token: null, name })) };
       const res = await askBackground({
         type: "refine",
         text: original,
