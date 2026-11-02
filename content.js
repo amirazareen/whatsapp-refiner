@@ -1,5 +1,5 @@
 // Content script for web.whatsapp.com: adds a compact refine button + tone
-// picker next to the send button (compose box and "Edit message" box), an
+// picker next to the send button (compose, "Edit message" and caption boxes), an
 // Alt+R hotkey, and a 💬 draft-reply button on incoming messages.
 
 (() => {
@@ -648,7 +648,9 @@
   // The send/confirm button's slot in the editor's row: the child of the
   // lowest common ancestor (of editor and button) that holds the button.
   function sendItemFor(ed) {
-    const inModal = !!ed.closest(MODAL);
+    // The photo/video caption box's Send button is far away in another bar,
+    // so like popups it uses the buttons on its own row (clear, emoji, view once).
+    const inModal = !!ed.closest(MODAL) || isCaption(ed);
     // Never search beyond the composer (footer) or popup the editor lives in.
     const boundary = ed.closest("footer") || ed.closest(MODAL);
     let el = ed.parentElement;
@@ -665,10 +667,13 @@
     return null;
   }
 
-  // The chat's compose box, plus editors in popups (like "Edit message").
+  const isCaption = (ed) => ed.matches('[data-testid*="caption" i]');
+
+  // The chat's compose box, the photo/video caption box, and editors in popups (like "Edit message").
   function allEditors() {
     return Array.from(document.querySelectorAll(EDITOR_SEL)).filter(
-      (ed) => !ed.closest("#side, header") && (ed.closest("footer") || ed.closest(MODAL) || sendItemFor(ed))
+      (ed) =>
+        !ed.closest("#side, header") && (ed.closest("footer") || ed.closest(MODAL) || isCaption(ed) || sendItemFor(ed))
     );
   }
 

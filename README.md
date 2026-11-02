@@ -2,7 +2,7 @@
 
 A Chrome/Edge extension that refines your WhatsApp Web drafts with Claude before you send them.
 
-- **✨ Refine** button and ▾ tone picker next to the send button (also in the "Edit message" box). Clicking ✨ shows 3 versions to pick from (shorter / best / different wording)
+- **✨ Refine** button and ▾ tone picker next to the send button (also in the "Edit message" box and the photo/video caption box). Clicking ✨ shows 3 versions to pick from (shorter / best / different wording)
 - **Alt+R** hotkey while typing: refines and inserts one version straight away
 - Tones: Polished, Friendly, Concise, Formal, Fix grammar only, → English, → Bahasa Melayu
 - Each chat remembers the tone you last picked there
