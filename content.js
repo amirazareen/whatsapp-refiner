@@ -95,8 +95,10 @@
   //  - data-id="false_…" (incoming) / "true_…" (mine)
   //  - an element with data-pre-plain-text="[10:21 AM, 16/10/2026] Name: "
   // and each one is normalised to its list row so lookups stay consistent.
+  // Newer WhatsApp Web (seen 2026-11) drops message-in/out and true_/false_ ids;
+  // conv-msg-* is then the only mark on photo-only messages.
   const MESSAGE_SIGNALS =
-    '.message-in, .message-out, [data-id^="false_"], [data-id^="true_"], [data-pre-plain-text]';
+    '.message-in, .message-out, [data-id^="false_"], [data-id^="true_"], [data-pre-plain-text], [data-testid^="conv-msg-"]';
 
   const chatPane = () => document.querySelector("#main") || document.body;
 
