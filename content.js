@@ -401,7 +401,7 @@
     busy = state;
     document.querySelectorAll(".wr-bar").forEach((b) => b.classList.toggle("wr-loading", state));
     document.querySelectorAll(".wr-btn, .wr-reply-btn, .wr-catchup").forEach((b) => (b.disabled = state));
-    replyBtn?.classList.toggle("wr-loading", state);
+    [replyBtn, explainBtn].forEach((b) => b?.classList.toggle("wr-loading", state));
   }
 
   async function askBackground(msg) {
@@ -555,6 +555,29 @@
     }
   }
 
+  // ---- 💡 Explain a message (and its pictures) in a private panel ----
+
+  async function explainMessage(row) {
+    if (busy) return;
+    if (!chatBubbles().includes(row)) return toast("Couldn't read this message. Try hovering it again.");
+    const bubble = bubbleEl(row);
+    const chat = chatTitle();
+
+    setBusy(true);
+    bubble.classList.add("wr-target");
+    try {
+      const { styleExamples, ...ctx } = await replyContext(row);
+      const res = await askBackground({ type: "explain", ...ctx });
+      if (res.error) return showError(res);
+      if (chatTitle() !== chat) return; // switched chats meanwhile
+      showPanel(`💡 Explanation${via(res)}`, res.text);
+    } finally {
+      bubble.classList.remove("wr-target");
+      setBusy(false);
+      updateVisibility();
+    }
+  }
+
   // ---- Pick one of 3 refined versions ----
 
   let picker = null;
@@ -601,6 +624,34 @@
     summaryEl = null;
   }
 
+  // Private panel under the chat header (catch-up and 💡 explanations).
+  function showPanel(titleText, text) {
+    closeSummary();
+    summaryEl = document.createElement("div");
+    summaryEl.className = "wr-summary";
+    const head = document.createElement("div");
+    head.className = "wr-summary-head";
+    const title = document.createElement("strong");
+    title.textContent = titleText;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "✕";
+    close.setAttribute("aria-label", "Close panel");
+    close.addEventListener("click", closeSummary);
+    head.append(title, close);
+    const body = document.createElement("div");
+    body.className = "wr-summary-body";
+    body.textContent = text; // model output from other people's messages: text only
+    summaryEl.append(head, body);
+    document.body.append(summaryEl);
+    const main = document.querySelector("#main")?.getBoundingClientRect();
+    const header = document.querySelector("#main header")?.getBoundingClientRect();
+    if (main && header) {
+      summaryEl.style.top = `${header.bottom + 8}px`;
+      summaryEl.style.right = `${Math.max(8, window.innerWidth - main.right + 16)}px`;
+    }
+  }
+
   async function summarizeChat() {
     if (busy) return;
     const messages = chatBubbles().slice(-60).map(readMessage);
@@ -611,30 +662,7 @@
       const res = await askBackground({ type: "summarize", messages });
       if (res.error) return showError(res);
       if (chatTitle() !== chat) return; // switched chats meanwhile
-      closeSummary();
-      summaryEl = document.createElement("div");
-      summaryEl.className = "wr-summary";
-      const head = document.createElement("div");
-      head.className = "wr-summary-head";
-      const title = document.createElement("strong");
-      title.textContent = `Catch-up: ${chat || "this chat"}${via(res)}`;
-      const close = document.createElement("button");
-      close.type = "button";
-      close.textContent = "✕";
-      close.setAttribute("aria-label", "Close summary");
-      close.addEventListener("click", closeSummary);
-      head.append(title, close);
-      const body = document.createElement("div");
-      body.className = "wr-summary-body";
-      body.textContent = res.text; // model output from other people's messages: text only
-      summaryEl.append(head, body);
-      document.body.append(summaryEl);
-      const main = document.querySelector("#main")?.getBoundingClientRect();
-      const header = document.querySelector("#main header")?.getBoundingClientRect();
-      if (main && header) {
-        summaryEl.style.top = `${header.bottom + 8}px`;
-        summaryEl.style.right = `${Math.max(8, window.innerWidth - main.right + 16)}px`;
-      }
+      showPanel(`Catch-up: ${chat || "this chat"}${via(res)}`, res.text);
     } finally {
       setBusy(false);
       updateVisibility();
@@ -817,30 +845,37 @@
     updateVisibility();
   }
 
-  // ---- 💬 button shown when hovering an incoming message ----
+  // ---- 💬 (incoming messages) and 💡 (all messages) shown on hover ----
 
   let replyBtn = null;
+  let explainBtn = null;
   let hoverBubble = null;
   let hideTimer = null;
 
-  function ensureReplyBtn() {
-    if (replyBtn) return replyBtn;
-    replyBtn = document.createElement("button");
-    replyBtn.type = "button";
-    replyBtn.className = "wr-reply-btn";
-    replyBtn.textContent = "💬";
-    replyBtn.title = "Draft a reply to this message";
-    replyBtn.addEventListener("mousedown", (e) => e.preventDefault());
-    replyBtn.addEventListener("click", () => hoverBubble && draftReplyTo(hoverBubble));
-    replyBtn.addEventListener("mouseenter", () => clearTimeout(hideTimer));
-    replyBtn.addEventListener("mouseleave", scheduleHide);
-    document.body.appendChild(replyBtn);
-    return replyBtn;
+  function hoverBtn(icon, title, onClick) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "wr-reply-btn";
+    b.textContent = icon;
+    b.title = title;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+    b.addEventListener("click", () => hoverBubble && onClick(hoverBubble));
+    b.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+    b.addEventListener("mouseleave", scheduleHide);
+    document.body.appendChild(b);
+    return b;
   }
+
+  function ensureHoverBtns() {
+    replyBtn ||= hoverBtn("💬", "Draft a reply to this message", draftReplyTo);
+    explainBtn ||= hoverBtn("💡", "Explain this message", explainMessage);
+  }
+
+  const hideHoverBtns = () => [replyBtn, explainBtn].forEach((b) => b?.classList.remove("wr-show"));
 
   function scheduleHide() {
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => !busy && replyBtn?.classList.remove("wr-show"), 400);
+    hideTimer = setTimeout(() => !busy && hideHoverBtns(), 400);
   }
 
   // A row is often full-width; the visible bubble is the first ancestor of
@@ -868,23 +903,28 @@
   document.addEventListener(
     "mouseover",
     (e) => {
-      if (replyBtn?.contains(e.target)) return;
+      if (replyBtn?.contains(e.target) || explainBtn?.contains(e.target)) return;
       const row = messageRowAt(e.target);
-      if (!row || isMine(row)) return scheduleHide();
+      if (!row) return scheduleHide();
       if (busy) return;
       clearTimeout(hideTimer);
       hoverBubble = row;
-      const btn = ensureReplyBtn();
-      // Sit on the bubble's top-right corner.
+      ensureHoverBtns();
+      // Sit on the bubble's top-right corner: 💬 there (others' messages only), 💡 just left of it.
       const r = bubbleRect(row);
       const paneTop = chatPane().getBoundingClientRect().top;
-      btn.style.top = `${Math.max(paneTop + 2, r.top - 10)}px`;
-      btn.style.left = `${Math.min(window.innerWidth - 30, r.right - 14)}px`;
-      btn.classList.add("wr-show");
+      const top = `${Math.max(paneTop + 2, r.top - 10)}px`;
+      const left = Math.min(window.innerWidth - 30, r.right - 14);
+      const mine = isMine(row);
+      replyBtn.style.top = explainBtn.style.top = top;
+      replyBtn.style.left = `${left}px`;
+      explainBtn.style.left = `${mine ? left : left - 28}px`;
+      replyBtn.classList.toggle("wr-show", !mine);
+      explainBtn.classList.add("wr-show");
     },
     true
   );
-  document.addEventListener("scroll", () => !busy && replyBtn?.classList.remove("wr-show"), true);
+  document.addEventListener("scroll", () => !busy && hideHoverBtns(), true);
 
   // ---- Diagnostics: if a chat is open but no messages are recognised, log
   // the page structure (tags/attributes only, never message text) so the
