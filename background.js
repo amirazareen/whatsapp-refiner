@@ -5,6 +5,8 @@ const API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-haiku-5-5";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
+// A hung request would keep every button disabled; on timeout it fails as "network" and the backup is tried.
+const TIMEOUT_MS = 90000;
 
 const TONES = {
   polished: "polished and clear, natural for a chat message",
@@ -146,6 +148,7 @@ async function callClaude(system, content, maxTokens = 4096) {
   try {
     res = await fetch(API_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: {
         "content-type": "application/json",
         "x-api-key": apiKey,
@@ -218,6 +221,7 @@ async function callOpenAI(system, content, maxTokens = 4096) {
   try {
     res = await fetch(OPENAI_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: { "content-type": "application/json", authorization: `Bearer ${openaiKey}` },
       body: JSON.stringify({
         model: openaiModel || DEFAULT_OPENAI_MODEL,
