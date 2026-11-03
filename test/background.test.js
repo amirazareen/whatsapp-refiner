@@ -16,6 +16,7 @@ function load(storage = {}, reply = "ok", responses = {}) {
   };
   const ctx = {
     console,
+    AbortSignal,
     chrome: {
       storage: { local: { get: async () => ({ apiKey: "test-key", ...storage }) } },
       runtime: { onMessage: { addListener: (fn) => (listener = fn) }, openOptionsPage() {} },
