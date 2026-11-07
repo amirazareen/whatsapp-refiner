@@ -247,10 +247,25 @@ body.dark .wr-reply-btn {
   font-size: 14px;
   cursor: pointer;
 }
+.wr-summary-head .wr-summary-copy {
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 4px 8px;
+  border: 1px solid #d1d7db;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.wr-summary-head .wr-summary-copy:hover {
+  border-color: #00a884;
+}
+/* WhatsApp turns text selection off page-wide; allow it in the panel. */
 .wr-summary-body {
   padding: 10px 12px;
   white-space: pre-wrap;
   line-height: 1.45;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 body.dark .wr-picker,
 body.dark .wr-summary {

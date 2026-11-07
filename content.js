@@ -627,7 +627,8 @@
   }
 
   // Private panel under the chat header (catch-up and 💡 explanations).
-  function showPanel(titleText, text) {
+  // With `copyText`, the head gets a "Copy for AI" button that copies it.
+  function showPanel(titleText, text, copyText = "") {
     closeSummary();
     summaryEl = document.createElement("div");
     summaryEl.className = "wr-summary";
@@ -640,7 +641,23 @@
     close.textContent = "✕";
     close.setAttribute("aria-label", "Close panel");
     close.addEventListener("click", closeSummary);
-    head.append(title, close);
+    if (copyText) {
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "wr-summary-copy";
+      copy.textContent = "📋 Copy for AI";
+      copy.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(copyText);
+          toast("Copied. Paste it into your AI chat and fill in the Task line.");
+        } catch (e) {
+          toast("Couldn't copy. Select the text and press Ctrl+C instead.");
+        }
+      });
+      head.append(title, copy, close);
+    } else {
+      head.append(title, close);
+    }
     const body = document.createElement("div");
     body.className = "wr-summary-body";
     body.textContent = text; // model output from other people's messages: text only
@@ -664,7 +681,12 @@
       const res = await askBackground({ type: "summarize", messages });
       if (res.error) return showError(res);
       if (chatTitle() !== chat) return; // switched chats meanwhile
-      showPanel(`Catch-up: ${chat || "this chat"}${via(res)}`, res.text);
+      const day = new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+      const forAI =
+        `Below is a summary of my WhatsApp chat "${chat || "this chat"}" (last ${messages.length} messages, ${day}). ` +
+        `"Me" or my name in it is me. Use it as context for the task at the end.\n\n` +
+        `<chat_summary>\n${res.text}\n</chat_summary>\n\nTask: `;
+      showPanel(`Catch-up: ${chat || "this chat"}${via(res)}`, res.text, forAI);
     } finally {
       setBusy(false);
       updateVisibility();
