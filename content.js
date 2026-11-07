@@ -572,7 +572,7 @@
       const res = await askBackground({ type: "explain", ...ctx });
       if (res.error) return showError(res);
       if (chatTitle() !== chat) return; // switched chats meanwhile
-      showPanel(`💡 Explanation${via(res)}`, res.text);
+      showPanel(`💡 Explanation${via(res)}`, res.text, { text: res.text, label: "📋 Copy", done: "Copied." });
     } finally {
       bubble.classList.remove("wr-target");
       setBusy(false);
@@ -627,8 +627,8 @@
   }
 
   // Private panel under the chat header (catch-up and 💡 explanations).
-  // With `copyText`, the head gets a "Copy for AI" button that copies it.
-  function showPanel(titleText, text, copyText = "") {
+  // With `copy` ({ text, label, done }), the head gets a button that copies copy.text.
+  function showPanel(titleText, text, copy = null) {
     closeSummary();
     summaryEl = document.createElement("div");
     summaryEl.className = "wr-summary";
@@ -641,20 +641,20 @@
     close.textContent = "✕";
     close.setAttribute("aria-label", "Close panel");
     close.addEventListener("click", closeSummary);
-    if (copyText) {
-      const copy = document.createElement("button");
-      copy.type = "button";
-      copy.className = "wr-summary-copy";
-      copy.textContent = "📋 Copy for AI";
-      copy.addEventListener("click", async () => {
+    if (copy) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "wr-summary-copy";
+      btn.textContent = copy.label;
+      btn.addEventListener("click", async () => {
         try {
-          await navigator.clipboard.writeText(copyText);
-          toast("Copied. Paste it into your AI chat and fill in the Task line.");
+          await navigator.clipboard.writeText(copy.text);
+          toast(copy.done);
         } catch (e) {
           toast("Couldn't copy. Select the text and press Ctrl+C instead.");
         }
       });
-      head.append(title, copy, close);
+      head.append(title, btn, close);
     } else {
       head.append(title, close);
     }
@@ -686,7 +686,11 @@
         `Below is a summary of my WhatsApp chat "${chat || "this chat"}" (last ${messages.length} messages, ${day}). ` +
         `"Me" or my name in it is me. Use it as context for the task at the end.\n\n` +
         `<chat_summary>\n${res.text}\n</chat_summary>\n\nTask: `;
-      showPanel(`Catch-up: ${chat || "this chat"}${via(res)}`, res.text, forAI);
+      showPanel(`Catch-up: ${chat || "this chat"}${via(res)}`, res.text, {
+        text: forAI,
+        label: "📋 Copy for AI",
+        done: "Copied. Paste it into your AI chat and fill in the Task line.",
+      });
     } finally {
       setBusy(false);
       updateVisibility();
