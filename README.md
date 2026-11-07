@@ -1,6 +1,8 @@
-# WhatsApp Text Refiner
+# Text Refiner for WhatsApp Web
 
-A Chrome/Edge extension that refines your WhatsApp Web drafts with Claude before you send them.
+> Not affiliated with, endorsed by or sponsored by WhatsApp or Meta. WhatsApp is a trademark of WhatsApp LLC.
+
+A Chrome/Edge extension that refines your WhatsApp Web drafts with Claude or OpenAI before you send them. Privacy policy: [PRIVACY.md](PRIVACY.md).
 
 - **✨ Refine** button and ▾ tone picker next to the send button (also in the "Edit message" box and the photo/video caption box). Clicking ✨ shows 3 versions to pick from (shorter / best / different wording)
 - **Alt+R** hotkey while typing: refines and inserts one version straight away
@@ -40,3 +42,7 @@ Your draft is sent to your main provider (`api.anthropic.com` or `api.openai.com
 ```bash
 node --test test/background.test.js
 ```
+
+## Publishing
+
+See [STORE.md](STORE.md) for the Chrome Web Store upload zip command, listing text and privacy answers.
