@@ -21,7 +21,7 @@ Nothing is sent until you click a button or press the hotkey. Each action sends 
 | 💡 Explain | The same nearby messages and up to 4 pictures from that message, without style examples. |
 | 📝 Catch me up | Up to the last 60 loaded messages of the open chat (text, names and times). |
 
-With every request, the extension also sends your **"About me" note**, if you wrote one, and the chosen **tone**.
+With every request, the extension also sends your **"About me" note**, if you wrote one. Refine requests also include the chosen **tone**.
 
 If you enter both an Anthropic and an OpenAI key, and your main provider fails (network error, timeout, invalid key, out of credit, rate limit or outage), the same request is sent once to the other provider. It is not resent when the AI declines a request.
 
@@ -38,6 +38,8 @@ The extension saves the following in your browser's local extension storage (`ch
 - A list of **chat names with the tone you last picked** in each chat, used to remember tones per chat
 
 The extension does not save chat messages, drafts, replies, explanations or summaries. They exist only on the open WhatsApp Web page and in your provider's API request.
+
+One exception: if putting text into the message box fails, the extension writes a troubleshooting warning to the browser's extension error log. That warning includes the draft and the text it tried to insert. The log stays on your device, is never sent anywhere, and can be cleared on the extension's **Errors** page in `chrome://extensions`. Other warnings describe only the page layout, never message text.
 
 ## Clipboard
 

@@ -67,10 +67,13 @@ AI writing help inside WhatsApp Web: it refines the user's drafts and, on reques
 
 **Remote code:** No, I am not using remote code. All JavaScript is in the package.
 
-**Data usage.** Tick these:
+**Data usage.** Tick these four. It is safer to declare too much than too little, because under-declaring is a common reason for rejection:
+- **Personally identifiable information:** senders' names in the messages sent, and anything the user writes in "About me"
 - **Personal communications:** the messages and pictures the user chooses to refine, reply to, explain or summarise
 - **Authentication information:** the user's own API keys, stored locally and sent only to their provider
-- **User activity:** none. Clear any other box, such as health, financial, location or web history.
+- **Website content:** the WhatsApp Web text and pictures the extension reads when the user clicks
+
+Leave the rest unticked: health, financial and payment, location, web history, and user activity (no clicks, keystrokes or browsing are tracked). If the dashboard's category list differs from this one, use these four as the guide.
 
 **Certifications.** Tick all three:
 - I do not sell or transfer user data to third parties, outside of the approved use cases
